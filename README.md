@@ -1,4 +1,4 @@
-# Gmail Copy Recipients 📋
+# Email-py 📋
 
 One click. Every recipient address. Ready to paste.
 
@@ -6,7 +6,7 @@ Copies **To, Cc, and Bcc** (when Gmail shows it), skips duplicates, and leaves o
 
 ## Get it
 
-1. Grab **Gmail-Copy-Recipients.zip** from the [latest release](https://github.com/mxkkyexe/Email-py/releases/latest).
+1. Grab **Email-py.zip** from the [latest release](https://github.com/mxkkyexe/Email-py/releases/latest).
 2. Unzip it.
 3. Open `chrome://extensions` and turn on **Developer mode**.
 4. Click **Load unpacked** and choose the unzipped folder.
