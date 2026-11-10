@@ -126,6 +126,16 @@
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
     input.blur();
+    const body = draft.querySelector(EDITOR_SELECTOR);
+    if (body) {
+      body.focus();
+      const range = document.createRange();
+      range.selectNodeContents(body);
+      range.collapse(false);
+      const selection = body.ownerDocument.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
   }
 
   function recordDraftEdit(event) {
@@ -139,13 +149,13 @@
 
   const ICONS = {
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
-    advanced: '<path d="m3 5 7 7-7 7m1-14 7 7-7 7"/>',
+    advanced: '<path d="M5 5l7 7-7 7M12 5l7 7-7 7"/>',
     success: '<path d="m4 12 5 5L20 6"/>',
     error: '<circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4h.01"/>'
   };
   const DEFAULT_LABELS = {
     copy: 'Copy recipient email addresses',
-    advanced: 'Advance Copy: copy addresses to the latest edited draft'
+    advanced: 'Copy addresses to the latest edited draft'
   };
 
   function showStatus(button, state, label) {

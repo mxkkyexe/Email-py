@@ -1,11 +1,13 @@
 .gmail-copy-recipients {
+  box-sizing: border-box;
+  flex: 0 0 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
   margin-inline-start: 4px;
-  padding: 3px;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -14,6 +16,7 @@
   vertical-align: middle;
 }
 .gmail-copy-recipients svg {
+  flex-shrink: 0;
   width: 17px;
   height: 17px;
   display: block;
