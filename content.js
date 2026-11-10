@@ -2,9 +2,11 @@
   'use strict';
 
   const BUTTON_CLASS = 'gmail-copy-recipients';
+  const ADVANCED_CLASS = 'gmail-copy-recipients-advanced';
   const DETAILS_SELECTOR = '.ajA, table';
   const EMAIL_PATTERN = /[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?)+/gi;
   let scanQueued = false;
+  let lastEditedDraft = null;
 
   function addressesFrom(value) {
     return value?.match(EMAIL_PATTERN) || [];
@@ -81,12 +83,64 @@
     }
   }
 
+  function draftFor(element) {
+    const draft = element.closest('.M9') || element.closest('.AD') || element.closest('[role="dialog"]');
+    return draft?.querySelector('input[name="to"]') ? draft : null;
+  }
+
+  function openDrafts() {
+    const drafts = new Set();
+    document.querySelectorAll('input[name="to"]').forEach(input => {
+      const draft = draftFor(input);
+      if (draft && draft.getClientRects().length && !draft.closest('[aria-hidden="true"]')) drafts.add(draft);
+    });
+    return [...drafts];
+  }
+
+  function mostRecentlyEditedDraft() {
+    const drafts = openDrafts();
+    if (lastEditedDraft && drafts.includes(lastEditedDraft)) return lastEditedDraft;
+    return drafts.length === 1 ? drafts[0] : null;
+  }
+
+  function addToDraft(draft, addresses) {
+    const input = draft.querySelector('input[name="to"]');
+    if (!input || input.disabled || input.readOnly) throw new Error('Draft To field is unavailable');
+
+    const before = input.value;
+    const suffix = `${before.trim() && !/[\s,;]$/.test(before) ? ', ' : ''}${addresses.join(', ')}`;
+    input.focus();
+    input.setSelectionRange(before.length, before.length);
+    const inserted = document.execCommand('insertText', false, suffix);
+    if (!inserted || input.value === before) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      setter.call(input, before + suffix);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.blur();
+  }
+
+  function recordDraftEdit(event) {
+    if (!(event.target instanceof Element)) return;
+    const draft = draftFor(event.target);
+    if (draft) lastEditedDraft = draft;
+  }
+
+  document.addEventListener('input', recordDraftEdit, true);
+  document.addEventListener('change', recordDraftEdit, true);
+
   const ICONS = {
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+    advanced: '<path d="m3 5 7 7-7 7m1-14 7 7-7 7"/>',
     success: '<path d="m4 12 5 5L20 6"/>',
     error: '<circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4h.01"/>'
   };
-  const DEFAULT_LABEL = 'Copy recipient email addresses';
+  const DEFAULT_LABELS = {
+    copy: 'Copy recipient email addresses',
+    advanced: 'Advance Copy: copy addresses to the latest edited draft'
+  };
 
   function showStatus(button, state, label) {
     button.dataset.state = state;
@@ -97,17 +151,19 @@
     button.statusTimer = setTimeout(() => {
       if (!button.isConnected) return;
       button.dataset.state = 'copy';
-      button.firstElementChild.innerHTML = ICONS.copy;
-      button.title = DEFAULT_LABEL;
-      button.setAttribute('aria-label', DEFAULT_LABEL);
+      button.firstElementChild.innerHTML = ICONS[button.dataset.action];
+      button.title = DEFAULT_LABELS[button.dataset.action];
+      button.setAttribute('aria-label', DEFAULT_LABELS[button.dataset.action]);
     }, 2200);
   }
 
-  async function handleCopy(button, arrow) {
+  async function handleCopy(button, arrow, buttons) {
     if (button.disabled) return;
-    button.disabled = true;
+    buttons.forEach(item => { item.disabled = true; });
     const previous = new Set(visibleDetails());
+    const draft = button.dataset.action === 'advanced' ? mostRecentlyEditedDraft() : null;
     let opened = false;
+    let copied = false;
     try {
       arrow.click();
       opened = true;
@@ -116,15 +172,40 @@
       const addresses = recipientRows(details);
       if (!addresses.length) throw new Error('No recipient addresses found');
       await copyText(addresses.join(', '));
-      showStatus(button, 'success', `Copied ${addresses.length} recipient addresses`);
+      copied = true;
+      if (button.dataset.action === 'advanced') {
+        if (!draft) throw new Error('No single or recently edited open draft');
+        addToDraft(draft, addresses);
+        showStatus(button, 'success', `Copied ${addresses.length} addresses to clipboard and draft`);
+      } else {
+        showStatus(button, 'success', `Copied ${addresses.length} recipient addresses`);
+      }
     } catch (error) {
-      console.warn('Gmail Copy Recipients:', error);
-      showStatus(button, 'error', 'Could not copy recipient addresses');
+      console.warn('Email-py:', error);
+      showStatus(button, 'error', button.dataset.action === 'advanced'
+        ? (copied ? 'Addresses copied; could not add them to a draft' : 'Could not copy recipient addresses')
+        : 'Could not copy recipient addresses');
     } finally {
       // Close only the details panel opened by this click.
       if (opened && visibleDetails().some(element => !previous.has(element) && recipientRows(element).length)) arrow.click();
-      button.disabled = false;
+      buttons.forEach(item => { item.disabled = false; });
     }
+  }
+
+  function createButton(action, arrow, buttons) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = action === 'advanced' ? `${BUTTON_CLASS} ${ADVANCED_CLASS}` : BUTTON_CLASS;
+    button.dataset.action = action;
+    button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[action]}</svg>`;
+    button.title = DEFAULT_LABELS[action];
+    button.setAttribute('aria-label', DEFAULT_LABELS[action]);
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      handleCopy(button, arrow, buttons);
+    });
+    buttons.push(button);
+    return button;
   }
 
   function addButtons() {
@@ -138,17 +219,11 @@
       if (arrow.nextElementSibling?.classList.contains(BUTTON_CLASS)) return;
       // Avoid placing the icon on an unrelated details control in the body.
       if (!arrow.closest('.gE, .hb, .gS, .gF') && !arrow.matches('.ajy, .ajz')) return;
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = BUTTON_CLASS;
-      button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS.copy}</svg>`;
-      button.title = DEFAULT_LABEL;
-      button.setAttribute('aria-label', DEFAULT_LABEL);
-      button.addEventListener('click', event => {
-        event.stopPropagation();
-        handleCopy(button, arrow);
-      });
-      arrow.insertAdjacentElement('afterend', button);
+      const buttons = [];
+      const copy = createButton('copy', arrow, buttons);
+      const advanced = createButton('advanced', arrow, buttons);
+      arrow.insertAdjacentElement('afterend', copy);
+      copy.insertAdjacentElement('afterend', advanced);
     });
   }
 

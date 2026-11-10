@@ -14,7 +14,12 @@ Copies **To, Cc, and Bcc** (when Gmail shows it), skips duplicates, and leaves o
 
 ## Use it
 
-Open a message and click the copy icon beside the recipient details arrow. A check mark means the addresses are on your clipboard.
+Open a message. Beside the recipient details arrow:
+
+- Click **Copy** to put the addresses on your clipboard.
+- Click **Advance Copy** (the double arrow) to copy them and add them to the **To** field of your most recently edited open draft.
+
+A check mark means it worked. If several drafts are open, edit the one you want first. Advance Copy includes visible Bcc addresses in **To**, so check the draft before sending.
 
 ## Update
 
