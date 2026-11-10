@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Email-py",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Copy Gmail recipient addresses, or add them to your latest edited draft.",
   "permissions": ["clipboardWrite"],
   "content_scripts": [

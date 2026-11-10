@@ -6,6 +6,7 @@
   const DETAILS_SELECTOR = '.ajA, table';
   const EMAIL_PATTERN = /[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?)+/gi;
   let scanQueued = false;
+  let copying = false;
   let lastEditedDraft = null;
 
   function addressesFrom(value) {
@@ -83,16 +84,19 @@
     }
   }
 
+  const TO_SELECTOR = 'input[name="to"], textarea[name="to"], input[aria-label="To recipients"], input[aria-label="To"], textarea[aria-label="To"], [data-recipient-type="to"] input, [data-recipient-type="to"] textarea';
+  const EDITOR_SELECTOR = '[contenteditable="true"][role="textbox"]';
+
   function draftFor(element) {
     const draft = element.closest('.M9') || element.closest('.AD') || element.closest('[role="dialog"]');
-    return draft?.querySelector('input[name="to"]') ? draft : null;
+    return draft && (draft.querySelector(TO_SELECTOR) || draft.querySelector(EDITOR_SELECTOR)) ? draft : null;
   }
 
   function openDrafts() {
     const drafts = new Set();
-    document.querySelectorAll('input[name="to"]').forEach(input => {
-      const draft = draftFor(input);
-      if (draft && draft.getClientRects().length && !draft.closest('[aria-hidden="true"]')) drafts.add(draft);
+    document.querySelectorAll(`${TO_SELECTOR}, ${EDITOR_SELECTOR}`).forEach(element => {
+      const draft = draftFor(element);
+      if (draft && draft.getClientRects().length && getComputedStyle(draft).visibility !== 'hidden' && !draft.closest('[aria-hidden="true"]')) drafts.add(draft);
     });
     return [...drafts];
   }
@@ -104,16 +108,18 @@
   }
 
   function addToDraft(draft, addresses) {
-    const input = draft.querySelector('input[name="to"]');
+    if (!draft.isConnected) throw new Error('The selected draft was closed');
+    const input = [...draft.querySelectorAll(TO_SELECTOR)].find(field => field.getClientRects().length && !field.disabled && !field.readOnly);
     if (!input || input.disabled || input.readOnly) throw new Error('Draft To field is unavailable');
 
     const before = input.value;
-    const suffix = `${before.trim() && !/[\s,;]$/.test(before) ? ', ' : ''}${addresses.join(', ')}`;
+    const suffix = `${before.trim() && !/[ ,;]$/.test(before.trimEnd()) ? ', ' : ''}${addresses.join(', ')}`;
     input.focus();
     input.setSelectionRange(before.length, before.length);
     const inserted = document.execCommand('insertText', false, suffix);
     if (!inserted || input.value === before) {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      const prototype = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(prototype, 'value').set;
       setter.call(input, before + suffix);
       input.dispatchEvent(new Event('input', { bubbles: true }));
     }
@@ -158,7 +164,8 @@
   }
 
   async function handleCopy(button, arrow, buttons) {
-    if (button.disabled) return;
+    if (button.disabled || copying) return;
+    copying = true;
     buttons.forEach(item => { item.disabled = true; });
     const previous = new Set(visibleDetails());
     const draft = button.dataset.action === 'advanced' ? mostRecentlyEditedDraft() : null;
@@ -173,8 +180,10 @@
       if (!addresses.length) throw new Error('No recipient addresses found');
       await copyText(addresses.join(', '));
       copied = true;
+      if (visibleDetails().some(element => !previous.has(element) && recipientRows(element).length)) arrow.click();
+      opened = false;
       if (button.dataset.action === 'advanced') {
-        if (!draft) throw new Error('No single or recently edited open draft');
+        if (!draft) throw new Error('Open one draft, or edit the intended draft first');
         addToDraft(draft, addresses);
         showStatus(button, 'success', `Copied ${addresses.length} addresses to clipboard and draft`);
       } else {
@@ -183,11 +192,12 @@
     } catch (error) {
       console.warn('Email-py:', error);
       showStatus(button, 'error', button.dataset.action === 'advanced'
-        ? (copied ? 'Addresses copied; could not add them to a draft' : 'Could not copy recipient addresses')
+        ? (copied ? `Addresses copied; ${error.message}` : 'Could not copy recipient addresses')
         : 'Could not copy recipient addresses');
     } finally {
       // Close only the details panel opened by this click.
       if (opened && visibleDetails().some(element => !previous.has(element) && recipientRows(element).length)) arrow.click();
+      copying = false;
       buttons.forEach(item => { item.disabled = false; });
     }
   }
@@ -227,7 +237,8 @@
     });
   }
 
-  const observer = new MutationObserver(() => {
+  const observer = new MutationObserver(records => {
+    if (records.every(record => record.target instanceof Element && record.target.closest(`.${BUTTON_CLASS}`))) return;
     if (scanQueued) return;
     scanQueued = true;
     requestAnimationFrame(() => {
