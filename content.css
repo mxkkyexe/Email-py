@@ -1,0 +1,32 @@
+.gmail-copy-recipients {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-inline-start: 4px;
+  padding: 3px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.gmail-copy-recipients svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+.gmail-copy-recipients:hover,
+.gmail-copy-recipients:focus-visible {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  outline: none;
+}
+.gmail-copy-recipients:focus-visible {
+  box-shadow: 0 0 0 2px currentColor;
+}
+.gmail-copy-recipients:disabled {
+  cursor: wait;
+  opacity: .6;
+}
