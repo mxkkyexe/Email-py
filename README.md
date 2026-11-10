@@ -1,6 +1,6 @@
 # Email-py 📋
 
-One click. Every recipient address. Ready to paste.
+Copy the crowd without the click marathon. 💌
 
 Copies **To, Cc, and Bcc** (when Gmail shows it), skips duplicates, and leaves out the sender.
 
@@ -12,14 +12,14 @@ Copies **To, Cc, and Bcc** (when Gmail shows it), skips duplicates, and leaves o
 4. Click **Load unpacked** and choose the unzipped folder.
 5. Refresh Gmail. You're ready! ✨
 
-## Use it
+## Pick your move
 
-Open a message. Beside the recipient details arrow:
+Open a Gmail message and look beside the recipient details arrow:
 
-- Click **Copy** to put the addresses on your clipboard.
-- Click **Advance Copy** (the double arrow) to copy them and add them to the **To** field of your most recently edited open draft.
+- **Copy** 📋 puts the addresses on your clipboard.
+- **Advance Copy** ⏩ copies them **and** adds them to the **To** field of your most recently edited open draft. Your cursor then lands in the draft body, ready for the next sentence.
 
-A check mark means it worked. If several drafts are open, edit the one you want first. Advance Copy includes visible Bcc addresses in **To**, so check the draft before sending.
+A check mark means success! If you have several drafts open, edit the one you want first. Advance Copy places visible Bcc addresses in **To**, so give the recipient list a quick look before sending.
 
 ## Update
 
