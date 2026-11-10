@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gmail Copy Recipients",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Copy the To, Cc, and Bcc email addresses of a Gmail message with one click.",
   "permissions": ["clipboardWrite"],
   "content_scripts": [

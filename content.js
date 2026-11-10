@@ -128,15 +128,22 @@
   }
 
   function addButtons() {
-    document.querySelectorAll('div[role=button].ajz').forEach(arrow => {
-      if (arrow.parentElement?.querySelector(`:scope > .${BUTTON_CLASS}`)) return;
-      if (!arrow.closest('.adn')) return;
+    // Gmail has used both .ajy (the dropdown control) and .ajz (its
+    // inner button) for this control. Prefer the outer control when nested.
+    const selectors = '.ajy, .ajz, [aria-label*="Show details" i], [data-tooltip*="Show details" i]';
+    document.querySelectorAll(selectors).forEach(candidate => {
+      const arrow = candidate.closest('.ajy') || candidate;
+      const message = arrow.closest('.adn, [data-message-id]');
+      if (!message || !message.querySelector('.hb, .gE')) return;
+      if (arrow.nextElementSibling?.classList.contains(BUTTON_CLASS)) return;
+      // Avoid placing the icon on an unrelated details control in the body.
+      if (!arrow.closest('.gE, .hb, .gS, .gF') && !arrow.matches('.ajy, .ajz')) return;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = BUTTON_CLASS;
       button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS.copy}</svg>`;
       button.title = DEFAULT_LABEL;
-      button.setAttribute('aria-label', button.title);
+      button.setAttribute('aria-label', DEFAULT_LABEL);
       button.addEventListener('click', event => {
         event.stopPropagation();
         handleCopy(button, arrow);

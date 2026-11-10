@@ -15,3 +15,5 @@ To try a newer version, update the folder and click the extension's **Reload** b
 ## Notes
 
 The extension runs only on `mail.google.com`. It uses the clipboard write permission and does not send or store message data. Gmail does not provide a stable DOM API for this button or its details panel, so Gmail interface changes may require selector updates.
+
+If the icon does not appear after updating, first confirm the extension is enabled on `chrome://extensions`, then reload the extension and the Gmail tab. Record the Gmail theme and whether the message is expanded in the Obsidian testing note.
