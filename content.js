@@ -107,25 +107,48 @@
     return drafts.length === 1 ? drafts[0] : null;
   }
 
-  function addToDraft(draft, addresses) {
-    if (!draft.isConnected) throw new Error('The selected draft was closed');
-    const input = [...draft.querySelectorAll(TO_SELECTOR)].find(field => field.getClientRects().length && !field.disabled && !field.readOnly);
-    if (!input || input.disabled || input.readOnly) throw new Error('Draft To field is unavailable');
+  async function addToDraft(draft, addresses) {
+    const getInput = () => {
+      if (!draft.isConnected) throw new Error('The selected draft was closed');
+      const input = [...draft.querySelectorAll(TO_SELECTOR)].find(field => field.getClientRects().length && !field.disabled && !field.readOnly);
+      if (!input) throw new Error('Draft To field is unavailable');
+      return input;
+    };
+    const confirmRecipient = async input => {
+      for (const type of ['keydown', 'keypress', 'keyup']) {
+        input.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+      }
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      input.blur();
+      // Gmail may replace the input while turning an address into a chip.
+      const deadline = Date.now() + 1500;
+      do {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        if (!getInput().value.trim()) return;
+      } while (Date.now() < deadline);
+      throw new Error('Gmail did not confirm the To recipient; check the draft before retrying');
+    };
 
-    const before = input.value;
-    const suffix = `${before.trim() && !/[ ,;]$/.test(before.trimEnd()) ? ', ' : ''}${addresses.join(', ')}`;
-    input.focus();
-    input.setSelectionRange(before.length, before.length);
-    const inserted = document.execCommand('insertText', false, suffix);
-    if (!inserted || input.value === before) {
-      const prototype = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-      const setter = Object.getOwnPropertyDescriptor(prototype, 'value').set;
-      setter.call(input, before + suffix);
-      input.dispatchEvent(new Event('input', { bubbles: true }));
+    // Preserve and commit anything the user already typed before adding ours.
+    let input = getInput();
+    if (input.value.trim()) {
+      input.focus();
+      await confirmRecipient(input);
     }
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.blur();
+    for (const address of addresses) {
+      input = getInput();
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      const before = input.value;
+      const inserted = document.execCommand('insertText', false, address);
+      if (!inserted || input.value === before) {
+        const prototype = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(prototype, 'value').set;
+        setter.call(input, before + address);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      await confirmRecipient(input);
+    }
     const body = draft.querySelector(EDITOR_SELECTOR);
     if (body) {
       body.focus();
@@ -194,7 +217,7 @@
       opened = false;
       if (button.dataset.action === 'advanced') {
         if (!draft) throw new Error('Open one draft, or edit the intended draft first');
-        addToDraft(draft, addresses);
+        await addToDraft(draft, addresses);
         showStatus(button, 'success', `Copied ${addresses.length} addresses to clipboard and draft`);
       } else {
         showStatus(button, 'success', `Copied ${addresses.length} recipient addresses`);
